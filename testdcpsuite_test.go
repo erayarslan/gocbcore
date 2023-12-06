@@ -45,6 +45,8 @@ func (suite *DCPTestSuite) SupportsFeature(feature TestFeatureCode) bool {
 	}
 
 	switch feature {
+	case TestFeatureDCPChangeStreams:
+		return !suite.ClusterVersion.Lower(srvVer720)
 	case TestFeatureDCPExpiry:
 		return !suite.ClusterVersion.Lower(srvVer650)
 	case TestFeatureDCPDeleteTimes:
@@ -77,7 +79,7 @@ func (suite *DCPTestSuite) SetupSuite() {
 	}
 
 	suite.dcpAgent, err = suite.initDCPAgent(
-		suite.makeDCPAgentConfig(suite.DCPTestConfig, suite.SupportsFeature(TestFeatureDCPExpiry)),
+		suite.makeDCPAgentConfig(suite.DCPTestConfig, suite.SupportsFeature(TestFeatureDCPExpiry), suite.SupportsFeature(TestFeatureDCPChangeStreams)),
 		"test-stream",
 		flags,
 	)
@@ -152,7 +154,7 @@ func (suite *DCPTestSuite) initAgent(config AgentConfig) (*Agent, error) {
 	return agent, nil
 }
 
-func (suite *DCPTestSuite) makeDCPAgentConfig(testConfig *DCPTestConfig, expiryEnabled bool) DCPAgentConfig {
+func (suite *DCPTestSuite) makeDCPAgentConfig(testConfig *DCPTestConfig, expiryEnabled bool, changeStreamsEnabled bool) DCPAgentConfig {
 	config := DCPAgentConfig{}
 	config.FromConnStr(testConfig.ConnStr)
 
@@ -161,6 +163,10 @@ func (suite *DCPTestSuite) makeDCPAgentConfig(testConfig *DCPTestConfig, expiryE
 
 	if expiryEnabled {
 		config.DCPConfig.UseExpiryOpcode = true
+	}
+
+	if changeStreamsEnabled {
+		config.DCPConfig.UseChangeStreams = true
 	}
 
 	config.SecurityConfig.Auth = testConfig.Authenticator
@@ -719,7 +725,7 @@ func (suite *DCPTestSuite) TestNSAgent() {
 		flags |= memd.DcpOpenFlagIncludeDeleteTimes
 	}
 
-	srcCfg := suite.makeDCPAgentConfig(suite.DCPTestConfig, suite.SupportsFeature(TestFeatureDCPExpiry))
+	srcCfg := suite.makeDCPAgentConfig(suite.DCPTestConfig, suite.SupportsFeature(TestFeatureDCPExpiry), suite.SupportsFeature(TestFeatureDCPChangeStreams))
 	if len(srcCfg.SeedConfig.HTTPAddrs) == 0 {
 		suite.T().Skip("Skipping test due to no HTTP addresses")
 	}
